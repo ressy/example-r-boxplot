@@ -1,0 +1,92 @@
+---
+title: "R Boxplots"
+author: "Jesse Connell"
+date: "4/11/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.width = 10)
+set.seed(0)
+```
+
+What is R's `boxplot` actually plotting?  For example, with a set of values
+following a normal distribution:
+
+```{r}
+val_count <- 5000
+val_mean <- 100
+val_sd <- 100
+values <- rnorm(n = val_count, mean = val_mean, sd = val_sd)
+```
+
+We see this in a histogram versus a boxplot:
+
+```{r}
+plotticks <- val_mean + seq(-400, 400, 100)
+layout(mat = matrix(1:2, ncol = 1))
+par(mar = c(2,2,2,2))
+hist(values, breaks = 30,
+     xlab = NULL, main = NULL,
+     xlim = range(plotticks),
+     xaxt = "n",
+     yaxt = "n")
+axis(side = 1, at = plotticks)
+boxplot(values, horizontal = TRUE,
+        ylim = range(plotticks),
+        yaxt = "n")
+axis(side = 1, at = plotticks)
+```
+
+What defines the edges of the box and the whiskers?
+
+`boxplot.stats` explains the details.  Mostly.
+
+```{r}
+boxplot.stats(values)
+```
+
+The core part is the "stats" element.  `?boxplot.stats` says `stats` is:
+
+> "a vector of length 5, containing the extreme of the lower whisker, the lower
+> 'hinge', the median, the upper 'hinge' and the extreme of the upper whisker."
+
+## Hinges
+
+> "The two 'hinges' are versions of the first and third quartile, i.e., close to
+> `quantile(x, c(1,3)/4)`."
+
+```{r}
+quantile(values)
+hinges <- unname(quantile(values, c(1,3)/4))
+hinges
+```
+
+## Whiskers
+
+> "If `coef` is positive, the whiskers extend to the most extreme data point
+> which is no more than coef times the length of the box away from the box."
+
+...what?  Well, with a default of 1.5 (see the `range` argument to `boxplot`)
+and "the box" being defined as the "the hinges" elsewhere in the page, the
+whiskers end up at the closest point within `+/- 1.5 * IQR` of the hinges, where
+the interquartile range is the difference between the hinges.
+
+```{r}
+coeff <- 1.5
+boxedges <- quantile(values, c(1,3)/4)
+boxlen <- diff(boxedges)
+whisker_bounds <- boxedges + c(-1, 1)*coeff*boxlen
+# That was just the abstract limits for the whiskers.  The actual values depend
+# on where our points are.
+in_bounds <- whisker_bounds[1] < values & values < whisker_bounds[2]
+whiskers <- range(values[in_bounds])
+whiskers
+```
+
+## All Together
+
+```{r}
+boxplot.stats(values)$stats
+sort(c(hinges, whiskers, median(values)))
+```
